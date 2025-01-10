@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
 # Membaca data dari file CSV
 def read_data(file_path):
@@ -23,10 +24,17 @@ def perform_regression(data):
         X = data[["X1", "X2", "X3", "X4", "X5", "X6"]]
         y = data["Y"]
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # Menambahkan konstanta untuk intersep
+        X = sm.add_constant(X)
 
-        model = LinearRegression()
-        model.fit(X_train, y_train)
+        # Melakukan regresi linear menggunakan statsmodels
+        model = sm.OLS(y, X).fit()
+
+        # Menampilkan hasil regresi
+        print(model.summary())
+
+        # Membagi data untuk visualisasi
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         y_pred = model.predict(X_test)
 
         plt.figure(figsize=(10, 6))
@@ -36,21 +44,17 @@ def perform_regression(data):
         plt.ylabel('Predicted Values')
         plt.title('Actual vs Predicted Values')
         plt.grid(True)
-        plt.figtext(0.15, 0.02, f"Koefisien: {np.round(model.coef_, 2)}\nIntercept: {np.round(model.intercept_, 2)}\nMSE: {np.round(mean_squared_error(y_test, y_pred), 2)}\nR^2 Score: {np.round(r2_score(y_test, y_pred), 2)}", fontsize=10, ha="left")
+        plt.figtext(0.15, 0.02, f"MSE: {np.round(mean_squared_error(y_test, y_pred), 2)}\nR^2 Score: {np.round(r2_score(y_test, y_pred), 2)}", fontsize=10, ha="left")
         plt.show()
 
-        kesimpulan = ""
-        if model.intercept_ > 0:
-            kesimpulan += "Intercept positif menunjukkan adanya nilai tabungan awal yang tidak dipengaruhi oleh variabel independen.\n"
-        else:
-            kesimpulan += "Intercept negatif menunjukkan potensi defisit meskipun tidak ada pengaruh dari variabel independen.\n"
+        # Kesimpulan berdasarkan hasil
+        kesimpulan = f"Hasil regresi menunjukkan bahwa R^2 = {model.rsquared:.2f}.\n"
+        for i, coef in enumerate(model.params[1:], start=1):  # Skip const
+            pval = model.pvalues[i]
+            signifikansi = "signifikan" if pval < 0.05 else "tidak signifikan"
+            kesimpulan += f"Variabel X{i} memiliki koefisien {coef:.2f} dan {signifikansi} dengan p-value {pval:.4f}.\n"
 
-        for i, coef in enumerate(model.coef_):
-            if coef > 0:
-                kesimpulan += f"Variabel X{i+1} memiliki pengaruh positif terhadap tabungan. Semakin tinggi nilai X{i+1}, semakin tinggi nilai Y.\n"
-            else:
-                kesimpulan += f"Variabel X{i+1} memiliki pengaruh negatif terhadap tabungan. Semakin tinggi nilai X{i+1}, semakin rendah nilai Y.\n"
-
+        print(kesimpulan)
         messagebox.showinfo("Kesimpulan", kesimpulan)
 
         return model
